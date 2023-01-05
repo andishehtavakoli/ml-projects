@@ -1,0 +1,424 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "2c92f7d9",
+   "metadata": {},
+   "source": [
+    "<img src=\"https://g.foolcdn.com/art/companylogos/square/jpm.png\" width=200>"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9d8a51c2",
+   "metadata": {},
+   "source": [
+    "### import libraries"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "651d7a5e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from selenium.webdriver.common.action_chains import ActionChains\n",
+    "from time import sleep\n",
+    "import selenium\n",
+    "from selenium import webdriver\n",
+    "from selenium.webdriver.common.by import By\n",
+    "from selenium.webdriver.common.keys import Keys\n",
+    "from selenium.webdriver.support.ui import WebDriverWait\n",
+    "from selenium.webdriver.chrome.options import Options\n",
+    "from selenium.webdriver.chrome.service import Service\n",
+    "from selenium.webdriver.common.by import By\n",
+    "from selenium.webdriver.support import expected_conditions as EC\n",
+    "import json\n",
+    "import re\n",
+    "from pprint import pprint\n",
+    "from tqdm import tqdm\n",
+    "import pandas as pd\n",
+    "import requests\n",
+    "from bs4 import BeautifulSoup"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d32c3b24",
+   "metadata": {},
+   "source": [
+    " ### 1. Getting a list of all articles by `Selenium`"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "id": "596d839d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "class JPMorganInsight:\n",
+    "    def __init__(self):\n",
+    "        \n",
+    "        self.mainlink = 'https://www.jpmorgan.com/insights'\n",
+    "        self.news_link = 'https://www.jpmorgan.com/news'\n",
+    "        chrome_options = Options()\n",
+    "        chrome_options.add_argument(\"--no-sandbox\")\n",
+    "        chrome_options.add_argument(\"--headless\")\n",
+    "        chrome_options.add_argument(\"start-maximized\")\n",
+    "        chrome_options.add_experimental_option(\"excludeSwitches\", [\"enable-automation\"])\n",
+    "        chrome_options.add_experimental_option('useAutomationExtension', False)\n",
+    "        webdriver_service = Service('/Users/andishetavakkoli/Documents/chrom_driver/Blackrock/chromedriver')\n",
+    "        self.driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)\n",
+    "        self.news_driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)\n",
+    "        \n",
+    "    @staticmethod\n",
+    "    def jpmorgan_insight(link):\n",
+    "\n",
+    "        response = requests.get(link)\n",
+    "        soup = BeautifulSoup(response.text)\n",
+    "        title = soup.find(class_='article__body__head').text.strip()\n",
+    "        tag = soup.find(class_='article__body__eyebrow').text.strip()\n",
+    "        date = soup.find(class_='article__body__abstract--date article__body__text--small').text.strip()\n",
+    "        raw_content = soup.find(class_='article__body ss-print').text\n",
+    "        content = re.sub('\\s+', ' ', raw_content).strip()\n",
+    "        return {         \n",
+    "                'index': '',\n",
+    "                'company': 'J.P.Morgan',\n",
+    "                'topic': 'Insight',\n",
+    "                'title': title,\n",
+    "                'date': date,\n",
+    "                'tag': tag,\n",
+    "                'link': link,\n",
+    "                'content': content,\n",
+    "                }\n",
+    "    \n",
+    "    @staticmethod\n",
+    "    def jpmorgan_news(link):\n",
+    "        \n",
+    "        if 'https://www.jpmorgan.com/news' in link:\n",
+    "\n",
+    "            try:\n",
+    "                response = requests.get(link)\n",
+    "                soup = BeautifulSoup(response.text)\n",
+    "                title = soup.find(class_='article__body__head').text.strip()\n",
+    "                date = soup.find(class_='article__body__abstract--date article__body__text--small').text.strip()\n",
+    "                raw_content = soup.find(class_='article__body ss-print').text\n",
+    "                content = re.sub('\\s+', ' ', raw_content).strip()\n",
+    "                return {         \n",
+    "                        'index': '',\n",
+    "                        'company': 'J.P.Morgan',\n",
+    "                        'topic': 'News',\n",
+    "                        'title': title,\n",
+    "                        'date': date,\n",
+    "                        'link': link,\n",
+    "                        'content': content,\n",
+    "                        }\n",
+    "            except:\n",
+    "                print(link)\n",
+    "    \n",
+    "    def get_all_jpmorgan_insight(self): \n",
+    "\n",
+    "        self.driver.get(self.mainlink)\n",
+    "       \n",
+    "        sleep(5)\n",
+    "\n",
+    "\n",
+    "        # while True:\n",
+    "\n",
+    "        #     try:\n",
+    "        #         show_more_button = driver.find_element(By.CSS_SELECTOR, '.fa-chevron-down')    \n",
+    "        #         driver.execute_script(\"arguments[0].click();\", show_more_button)\n",
+    "\n",
+    "        #     except: \n",
+    "        #         pass\n",
+    "\n",
+    "\n",
+    "        \n",
+    "        link_list_insight = [i.get_attribute('href') for i in self.driver.find_elements(By.XPATH, '//*[@class=\"item\"]/a')]\n",
+    "        \n",
+    "        jpmorgan_insight_list = []\n",
+    "        index = 1\n",
+    "        for link in link_list_insight:\n",
+    "            \n",
+    "            jpmorgan_dict = self.jpmorgan_insight(link)\n",
+    "            jpmorgan_dict.update({'index': index})\n",
+    "            jpmorgan_insight_list.append(jpmorgan_dict)\n",
+    "            index += 1\n",
+    "        \n",
+    "             \n",
+    "        return jpmorgan_insight_list\n",
+    "    \n",
+    "    \n",
+    "    def get_all_jpmorgan_news(self): \n",
+    "        \n",
+    "        self.news_driver.get(self.news_link)\n",
+    "        sleep(5)\n",
+    "\n",
+    "        \n",
+    "        link_list_news =[link.get_attribute('href') for link in self.news_driver.find_elements(By.XPATH, '//*[@class=\"title\"]//a')]\n",
+    "        \n",
+    "        jpmorgan_news_list = []\n",
+    "        index = 1\n",
+    "        for link in link_list_news:\n",
+    "            \n",
+    "            jpmorgan_dict = self.jpmorgan_news(link)\n",
+    "            jpmorgan_dict.update({'index': index})\n",
+    "            jpmorgan_news_list.append(jpmorgan_dict)\n",
+    "            index += 1\n",
+    "        \n",
+    "             \n",
+    "        return jpmorgan_news_list\n",
+    "\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "49e9afa5",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "obj = JPMorganInsight()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 57,
+   "id": "0fa8f9d3",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "AttributeError",
+     "evalue": "'NoneType' object has no attribute 'update'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mAttributeError\u001b[0m                            Traceback (most recent call last)",
+      "Input \u001b[0;32mIn [57]\u001b[0m, in \u001b[0;36m<cell line: 1>\u001b[0;34m()\u001b[0m\n\u001b[0;32m----> 1\u001b[0m \u001b[43mobj\u001b[49m\u001b[38;5;241;43m.\u001b[39;49m\u001b[43mget_all_jpmorgan_news\u001b[49m\u001b[43m(\u001b[49m\u001b[43m)\u001b[49m\n",
+      "Input \u001b[0;32mIn [55]\u001b[0m, in \u001b[0;36mJPMorganInsight.get_all_jpmorgan_news\u001b[0;34m(self)\u001b[0m\n\u001b[1;32m    104\u001b[0m \u001b[38;5;28;01mfor\u001b[39;00m link \u001b[38;5;129;01min\u001b[39;00m link_list_news:\n\u001b[1;32m    106\u001b[0m     jpmorgan_dict \u001b[38;5;241m=\u001b[39m \u001b[38;5;28mself\u001b[39m\u001b[38;5;241m.\u001b[39mjpmorgan_news(link)\n\u001b[0;32m--> 107\u001b[0m     \u001b[43mjpmorgan_dict\u001b[49m\u001b[38;5;241;43m.\u001b[39;49m\u001b[43mupdate\u001b[49m({\u001b[38;5;124m'\u001b[39m\u001b[38;5;124mindex\u001b[39m\u001b[38;5;124m'\u001b[39m: index})\n\u001b[1;32m    108\u001b[0m     jpmorgan_news_list\u001b[38;5;241m.\u001b[39mappend(jpmorgan_dict)\n\u001b[1;32m    109\u001b[0m     index \u001b[38;5;241m+\u001b[39m\u001b[38;5;241m=\u001b[39m \u001b[38;5;241m1\u001b[39m\n",
+      "\u001b[0;31mAttributeError\u001b[0m: 'NoneType' object has no attribute 'update'"
+     ]
+    }
+   ],
+   "source": [
+    "obj.get_all_jpmorgan_news()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "e0979ea3",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a46b3273",
+   "metadata": {},
+   "source": [
+    "# JP Morgan News"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 59,
+   "id": "5c858899",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "exit?\n"
+     ]
+    }
+   ],
+   "source": [
+    "chrome_options = Options()\n",
+    "chrome_options.add_argument(\"--no-sandbox\")\n",
+    "# chrome_options.add_argument(\"--headless\")\n",
+    "chrome_options.add_argument(\"start-maximized\")\n",
+    "chrome_options.add_experimental_option(\"excludeSwitches\", [\"enable-automation\"])\n",
+    "chrome_options.add_experimental_option('useAutomationExtension', False)\n",
+    "webdriver_service = Service('/Users/andishetavakkoli/Documents/chrom_driver/Blackrock/chromedriver')\n",
+    "driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)\n",
+    "\n",
+    "driver.get('https://www.jpmorgan.com/news#')\n",
+    "sleep(5)\n",
+    "\n",
+    "\n",
+    "link_list_news =[link.get_attribute('href') for link in driver.find_elements(By.XPATH, '//*[@class=\"title\"]//a')]\n",
+    "\n",
+    "\n",
+    "input('exit?')\n",
+    "driver.quit()  "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 65,
+   "id": "96a79e7b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def jpmorgan_news(link):\n",
+    "\n",
+    "        if 'https://www.jpmorgan.com/news' in link:\n",
+    "            response = requests.get(link)\n",
+    "            soup = BeautifulSoup(response.text)\n",
+    "            title = soup.find(class_='article__body__head').text.strip()\n",
+    "            date = soup.find(class_='article__body__abstract--date article__body__text--small').text.strip()\n",
+    "            raw_content = soup.find(class_='article__body ss-print').text\n",
+    "            content = re.sub('\\s+', ' ', raw_content).strip()\n",
+    "            return {         \n",
+    "                    'index': '',\n",
+    "                    'company': 'J.P.Morgan',\n",
+    "                    'topic': 'News',\n",
+    "                    'title': title,\n",
+    "                    'date': date,\n",
+    "                    'link': link,\n",
+    "                    'content': content,\n",
+    "                    }"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "edf34344",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "jpmorgan_list['']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "id": "61e842f1",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "jpmorgan_list = []\n",
+    "\n",
+    "for link in link_list_news:\n",
+    "    jpmorgan_list.append(jpmorgan_news(link))\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 68,
+   "id": "9ae9f6bc",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "184"
+      ]
+     },
+     "execution_count": 68,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(jpmorgan_list)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "a14fd2f3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "response = requests.get('https://www.jpmorgan.com/wealth-management/wealth-partners/insights/retirement-planning-even-multimillionaires-can-run-out-of-money')\n",
+    "soup = BeautifulSoup(response.text)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "059d2cd8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "raw_content = soup.find(class_='article__body ss-print').text"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "id": "0c20c021",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "content = re.sub('\\s+', ' ', raw_content).strip()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "id": "8c779c67",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "date = soup.find(class_='article__body__abstract--date article__body__text--small').text.strip()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "88c4b0b6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "tag = soup.find(class_='article__body__eyebrow').text.strip()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "id": "c6386ff5",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "title = soup.find(class_='article__body__head').text.strip()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "59998bbe",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
